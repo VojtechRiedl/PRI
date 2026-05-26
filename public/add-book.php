@@ -103,10 +103,9 @@ $data = [
     'genre_ids' => [],
 ];
 
-render_header('Pridat knihu');
-
 try {
-    // Číselníky se načítají vždy, protože jsou potřeba pro selecty a checkboxy.
+    // Číselníky se načítají před render_header(), protože při úspěšném POSTu
+    // může následovat redirect a ten musí proběhnout před jakýmkoliv HTML výstupem.
     $options = lookup_options();
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -118,121 +117,126 @@ try {
             redirect_to('/book.php?id=' . rawurlencode($bookId) . '&created=1');
         }
     }
-    ?>
-    <!-- Formulář si při chybě ponechá odeslané hodnoty v poli $data. -->
-    <section class="section-heading">
-        <div>
-            <p class="eyebrow">Zápis do databaze</p>
-            <h1>Přidat knihu</h1>
-        </div>
-    </section>
-
-    <?php if ($errors !== []): ?>
-        <section class="notice error">
-            <h2>Formulář obsahuje chyby</h2>
-            <ul>
-                <?php foreach ($errors as $error): ?>
-                    <li><?= e($error) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </section>
-    <?php endif; ?>
-
-    <!-- novalidate vypíná vestavěné hlášky prohlížeče, validaci řeší app.js a PHP. -->
-    <form class="panel form" method="post" action="/add-book.php" data-validate-book novalidate>
-        <div class="client-errors notice error" hidden></div>
-
-        <label>
-            Název knihy
-            <input type="text" name="title" value="<?= e((string) $data['title']) ?>" required maxlength="100">
-        </label>
-
-        <div class="form-grid">
-            <label>
-                ISBN
-                <input type="text" name="isbn" value="<?= e((string) ($data['isbn'] ?? '')) ?>" inputmode="numeric" maxlength="13" placeholder="9788072038848">
-            </label>
-            <label>
-                Rok vydání
-                <input type="number" name="publication_year" value="<?= e((string) ($data['publication_year'] ?? '')) ?>" min="1400" max="<?= e((string) ((int) date('Y') + 1)) ?>">
-            </label>
-            <label>
-                Počet stran
-                <input type="number" name="pages" value="<?= e((string) ($data['pages'] ?? '')) ?>" min="1">
-            </label>
-        </div>
-
-        <label>
-            Popis
-            <textarea name="description" rows="5"><?= e((string) ($data['description'] ?? '')) ?></textarea>
-        </label>
-
-        <div class="form-grid">
-            <label>
-                Vydavatel
-                <select name="publisher_id" required>
-                    <option value="">Vyber vydavatele</option>
-                    <?php foreach ($options['publishers'] as $publisher): ?>
-                        <option value="<?= e($publisher['id']) ?>"<?= selected_attr((string) $data['publisher_id'], $publisher['id']) ?>>
-                            <?= e($publisher['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label>
-                Jazyk
-                <select name="language_id" required>
-                    <option value="">Vyber jazyk</option>
-                    <?php foreach ($options['languages'] as $language): ?>
-                        <option value="<?= e($language['id']) ?>"<?= selected_attr((string) $data['language_id'], $language['id']) ?>>
-                            <?= e($language['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label>
-                Format
-                <select name="format_id" required>
-                    <option value="">Vyber format</option>
-                    <?php foreach ($options['formats'] as $format): ?>
-                        <option value="<?= e($format['id']) ?>"<?= selected_attr((string) $data['format_id'], $format['id']) ?>>
-                            <?= e($format['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-        </div>
-
-        <fieldset>
-            <legend>Autoři</legend>
-            <div class="checks">
-                <?php foreach ($options['authors'] as $author): ?>
-                    <label>
-                        <input type="checkbox" name="author_ids[]" value="<?= e($author['id']) ?>"<?= checked_attr($data['author_ids'], $author['id']) ?>>
-                        <?= e($author['name']) ?>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        </fieldset>
-
-        <fieldset>
-            <legend>Žánry</legend>
-            <div class="checks">
-                <?php foreach ($options['genres'] as $genre): ?>
-                    <label>
-                        <input type="checkbox" name="genre_ids[]" value="<?= e($genre['id']) ?>"<?= checked_attr($data['genre_ids'], $genre['id']) ?>>
-                        <?= e($genre['name']) ?>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        </fieldset>
-
-        <button class="button" type="submit">Uložit knihu</button>
-    </form>
-    <?php
 } catch (Throwable $exception) {
     // Pokud nelze načíst číselníky nebo uložit knihu, zobrazí se databázová chyba.
+    render_header('Pridat knihu');
     render_db_error($exception);
+    render_footer();
+    exit;
 }
+
+render_header('Pridat knihu');
+?>
+<!-- Formulář si při chybě ponechá odeslané hodnoty v poli $data. -->
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Zápis do databaze</p>
+        <h1>Přidat knihu</h1>
+    </div>
+</section>
+
+<?php if ($errors !== []): ?>
+    <section class="notice error">
+        <h2>Formulář obsahuje chyby</h2>
+        <ul>
+            <?php foreach ($errors as $error): ?>
+                <li><?= e($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </section>
+<?php endif; ?>
+
+<!-- novalidate vypíná vestavěné hlášky prohlížeče, validaci řeší app.js a PHP. -->
+<form class="panel form" method="post" action="/add-book.php" data-validate-book novalidate>
+    <div class="client-errors notice error" hidden></div>
+
+    <label>
+        Název knihy
+        <input type="text" name="title" value="<?= e((string) $data['title']) ?>" required maxlength="100">
+    </label>
+
+    <div class="form-grid">
+        <label>
+            ISBN
+            <input type="text" name="isbn" value="<?= e((string) ($data['isbn'] ?? '')) ?>" inputmode="numeric" maxlength="13" placeholder="9788072038848">
+        </label>
+        <label>
+            Rok vydání
+            <input type="number" name="publication_year" value="<?= e((string) ($data['publication_year'] ?? '')) ?>" min="1400" max="<?= e((string) ((int) date('Y') + 1)) ?>">
+        </label>
+        <label>
+            Počet stran
+            <input type="number" name="pages" value="<?= e((string) ($data['pages'] ?? '')) ?>" min="1">
+        </label>
+    </div>
+
+    <label>
+        Popis
+        <textarea name="description" rows="5"><?= e((string) ($data['description'] ?? '')) ?></textarea>
+    </label>
+
+    <div class="form-grid">
+        <label>
+            Vydavatel
+            <select name="publisher_id" required>
+                <option value="">Vyber vydavatele</option>
+                <?php foreach ($options['publishers'] as $publisher): ?>
+                    <option value="<?= e($publisher['id']) ?>"<?= selected_attr((string) $data['publisher_id'], $publisher['id']) ?>>
+                        <?= e($publisher['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label>
+            Jazyk
+            <select name="language_id" required>
+                <option value="">Vyber jazyk</option>
+                <?php foreach ($options['languages'] as $language): ?>
+                    <option value="<?= e($language['id']) ?>"<?= selected_attr((string) $data['language_id'], $language['id']) ?>>
+                        <?= e($language['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label>
+            Format
+            <select name="format_id" required>
+                <option value="">Vyber format</option>
+                <?php foreach ($options['formats'] as $format): ?>
+                    <option value="<?= e($format['id']) ?>"<?= selected_attr((string) $data['format_id'], $format['id']) ?>>
+                        <?= e($format['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+    </div>
+
+    <fieldset>
+        <legend>Autoři</legend>
+        <div class="checks">
+            <?php foreach ($options['authors'] as $author): ?>
+                <label>
+                    <input type="checkbox" name="author_ids[]" value="<?= e($author['id']) ?>"<?= checked_attr($data['author_ids'], $author['id']) ?>>
+                    <?= e($author['name']) ?>
+                </label>
+            <?php endforeach; ?>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Žánry</legend>
+        <div class="checks">
+            <?php foreach ($options['genres'] as $genre): ?>
+                <label>
+                    <input type="checkbox" name="genre_ids[]" value="<?= e($genre['id']) ?>"<?= checked_attr($data['genre_ids'], $genre['id']) ?>>
+                    <?= e($genre['name']) ?>
+                </label>
+            <?php endforeach; ?>
+        </div>
+    </fieldset>
+
+    <button class="button" type="submit">Uložit knihu</button>
+</form>
+<?php
 
 render_footer();
